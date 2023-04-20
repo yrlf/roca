@@ -641,7 +641,7 @@ def main():
             error_rate = 1-(train_noisy_labels[:,0]==prime_Y).sum()/len(train_noisy_labels)
             print(error_rate)
         
-        else:
+        else:#
             dataset = train_dataset.dataset.data
             #print("dataset0 ", dataset[0])
             if args.noise_injection_type == 'ins':
