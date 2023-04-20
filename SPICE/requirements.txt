@@ -1,9 +1,0 @@
-pytorch==1.6.0
-matplotlib
-addict
-scipy
-tensorboard
-scikit-learn
-python-lmdb
-pillow
-tensorboard
