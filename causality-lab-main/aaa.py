@@ -1,0 +1,183 @@
+import networkx as nx
+from cdt.causality.graph import *
+from cdt.data import load_dataset
+import cdt
+import matplotlib.pyplot as plt
+
+import networkx as nx
+from cdt.causality.graph import PC
+from cdt.data import load_dataset
+import os
+
+import argparse
+from random import seed
+from mylib.utils import fix_seed
+from mylib.data.data_loader import load_ucidata
+import numpy as np
+import csv
+
+# --- parsing and configuration --- #
+parser = argparse.ArgumentParser(
+    description="PyTorch implementation of VAE")
+parser.add_argument('--batch_size', type=int, default=16,
+                    help='batch size for training (default: 128)')
+parser.add_argument('--epochs', type=int, default=50,
+                    help='number of epochs to train (default: 20)')
+parser.add_argument('--z_dim', type=int, default=25,
+                    help='dimension of hidden variable Z (default: 10)')
+parser.add_argument('--num_hidden_layers', type=int, default=2,
+                    help='num hidden_layers (default: 0)')
+parser.add_argument('--flip_rate_fixed', type=float,
+                    help='fixed flip rates.', default=0.02)
+parser.add_argument('--train_frac', default=1.0, type=float,
+                    help='training sample size fraction')
+parser.add_argument('--noise_type', type=str, default='pair')
+parser.add_argument('--trainval_split',  default=0.8, type=float,
+                    help='training set ratio')
+parser.add_argument('--seed', default=1, type=int,
+                    help='seed for initializing training')
+parser.add_argument('--dataset', default="iris", type=str,
+                    help='db')
+parser.add_argument('--select_ratio', default=0, type=float,
+                    help='confidence example selection ratio')
+parser.add_argument('--pretrained', default=0, type=int,
+                    help='using pretrained model or not')
+
+parser.add_argument('--method', type=str, default="pc",
+                    help='number of epochs to train (default: 20)')
+
+
+
+
+def checkCA2(dataset, arr):
+
+    outedge = np.sum(arr[-1] == 1)
+    inedge =  np.sum(arr[:, -1] == 1)
+    print("out edge: "+str(outedge)+" in edge: "+str(inedge))
+
+    results = "unkown"
+    if outedge>0:
+        results = "anticausal"
+        print(dataset, "anticausal",outedge)
+
+    elif inedge>0:
+        results = "causal"
+        print(dataset, "causal", inedge)
+
+    else: 
+        print(dataset, "unkown")
+
+    return results
+    
+# data, graph = load_dataset("sachs")
+
+def runCDT(method):
+    if method=='pc':
+        obj = PC()
+    elif method =='ges':
+        obj = GES()
+    elif method =='lingam':
+        obj=LiNGAM()
+    elif method =='cam':
+        obj = CAM()
+    # elif method =='cgnn':
+    #     obj =CGNN()
+    elif method =='gies':
+        obj =GIES()
+    else:
+        print("unknown method")
+        obj = None
+    return obj
+
+args = parser.parse_args()
+base_dir = "./"+args.dataset+"/"+args.noise_type+str(args.flip_rate_fixed)+"/"+str(args.seed)+"/"
+print(args)
+
+if args.seed is not None:
+    fix_seed(args.seed)
+
+train_val_loader, train_loader, val_loader, est_loader, test_loader = load_ucidata(
+    dataset = args.dataset,  
+    noise_type = args.noise_type,
+    random_state = args.seed, 
+    batch_size = args.batch_size, 
+    add_noise = True, 
+    flip_rate_fixed = args.flip_rate_fixed, 
+    trainval_split = args.trainval_split,
+    train_frac = args.train_frac,
+    augment=False
+)
+test_dataset = test_loader.dataset
+val_dataset = val_loader.dataset
+
+data_train = train_loader.dataset.dataset.noise_data
+# print(data_train)
+
+n_samples, n_vars = data_train.shape
+
+print(n_vars-1)
+import pandas as pd
+data = pd.DataFrame(data_train, columns = list(range(n_vars)))
+
+
+# print(df)
+
+
+obj = runCDT(args.method)
+# print(data)
+#The predict() method works without a graph, or with a
+#directed or undirected graph provided as an input
+output = obj.predict(data)    #No graph provided as an argument
+
+#checkCA(output)
+# output = obj.predict(data, nx.Graph(graph))  #With an undirected graph
+# output = obj.predict(data, graph)  #With a directed graph
+# print(output)
+#To view the graph created, run the below commands:
+output_graph= nx.adjacency_matrix(output)
+
+matrix_dense=output_graph.toarray()
+
+results = checkCA2(args.dataset,matrix_dense)
+
+data_to_save = [args.dataset, args.noise_type, str(args.flip_rate_fixed), args.method, str(results)]
+
+headers = ['Dataset', 'Noise_Type', 'Noise_Rate','Method',"Causality"]
+
+filename='aaa_results.csv'
+
+if os.path.isfile(filename):
+    with open(filename, 'a') as f:
+        writer = csv.writer(f)
+        
+        writer.writerow(data_to_save)
+else:
+    with open(filename, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        
+        writer.writerow(data_to_save)
+
+#nx.draw_networkx(output, font_size=8)
+#plt.show()
+
+
+# data, graph = cdt.data.load_dataset('sachs')
+# glasso = cdt.independence.graph.Glasso()
+# skeleton = glasso.predict(data)
+# # new_skeleton = nx.DiGraph()
+
+# model = LiNGAM()
+# output_graph = model.predict(data,skeleton)
+# print(nx.adjacency_matrix(output_graph).todense())
+
+
+# import networkx as nx
+# g = nx.DiGraph()  # initialize a directed graph
+# l = list(g.nodes())  # list of nodes in the graph
+# a = nx.adj_matrix(g).todense()  # Output the adjacency matrix of the graph
+# e = list(g.edges())
+
+# data, graph = load_dataset("sachs")
+# obj = LiNGAM()
+# output = obj.predict(data)
