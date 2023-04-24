@@ -292,7 +292,11 @@ def get_instance_noisy_label(n, dataset, labels, nb_classes, feature_size, norm_
     W = torch.FloatTensor(W)
     for i, (x, y) in enumerate(dataset):
         # 1*m *  m*10 = 1*10
+        if i==0:
 
+
+            print("x shape is: ", x.shape)
+            print("W[y] shape is: ", W[y].shape)
         #print(x.shape)
         t=x.view(1, -1)
         #print("t shape is: ",t.shape)
@@ -323,7 +327,7 @@ def get_instance_noisy_label(n, dataset, labels, nb_classes, feature_size, norm_
     return np.array(new_label), n, P
 
 
-def get_instance_noisy_label2(n, dataset, labels, nb_classes, feature_size, norm_std, random_state): 
+def get_instance_noisy_label2(n, dataset, labels, nb_classes, feature_size, norm_std, random_state):
     # n -> noise_rate 
     # dataset -> mnist, cifar10 # not train_loader
     # labels -> labels (targets)
@@ -332,10 +336,13 @@ def get_instance_noisy_label2(n, dataset, labels, nb_classes, feature_size, norm
     # norm_std -> default 0.1
     # seed -> random_seed 
     # print("building dataset...")
+
+    # print("dataset in get_instance_noisy_label")
+
     label_num = nb_classes
     np.random.seed(int(random_state))
     torch.manual_seed(int(random_state))
-    torch.cuda.manual_seed(int(random_state))
+    # torch.cuda.manual_seed(int(random_state))
     # print(dataset)
     # print(labels)
     # print(norm_std)
@@ -350,18 +357,22 @@ def get_instance_noisy_label2(n, dataset, labels, nb_classes, feature_size, norm
 
     if isinstance(labels, list):
         labels = torch.FloatTensor(labels)
-    labels = labels.cuda()
 
     W = np.random.randn(label_num, feature_size, label_num)
-
-
-    W = torch.FloatTensor(W).cuda()
-
-    for i, (x, y),_ in enumerate(dataset):
-
+    print("W size is: ", W.shape)
+    # print(list(dataset))
+    W = torch.FloatTensor(W)
+    for i, (x, y) in enumerate(dataset):
         # 1*m *  m*10 = 1*10
-        x = x.cuda()
-        A = x.view(1, -1).mm(W[y]).squeeze(0)
+
+        if i ==0:
+            print("x shape is: ", x.shape)
+            print("W[y] shape is: ", W[y].shape)
+
+        t = x.contiguous().reshape(1, -1)
+        # print("t shape is: ",t.shape)
+        A = x.contiguous().reshape(1, -1).mm(W[y]).squeeze(0)
+        # print("A shape is: ",A.shape)
         A[y] = -inf
         A = flip_rate[i] * F.softmax(A, dim=0)
         A[y] += 1 - flip_rate[i]
@@ -374,7 +385,6 @@ def get_instance_noisy_label2(n, dataset, labels, nb_classes, feature_size, norm
     for a, b in zip(labels, new_label):
         a, b = int(a), int(b)
         record[a][b] += 1
-
 
     pidx = np.random.choice(range(P.shape[0]), 1000)
     cnt = 0

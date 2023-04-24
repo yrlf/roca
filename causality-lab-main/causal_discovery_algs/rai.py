@@ -83,7 +83,7 @@ class LearnStructRAI(LearnStructBase):
         :param order: CI test order, i.e., condition set size
         :return:
         """
-
+        print("_learn_recursively: ")
         # test exit condition
         if self._exit_cond(en_nodes, order):
             return
@@ -101,6 +101,8 @@ class LearnStructRAI(LearnStructBase):
         self._learn_recursively(en_nodes=d_nodes, ex_nodes=a_nodes | ex_nodes,
                                 order=order+1)  # recursive call (descendant)
 
+        print("_learn_recursively completed")
+
     def _refine_and_orient(self, en_nodes, ex_nodes, order, cond_indep=None):
         """
         Refine by removing edges between nodes that are conditionally independent given some set.
@@ -111,10 +113,13 @@ class LearnStructRAI(LearnStructBase):
         :param cond_indep: CI test
         :return:
         """
+        print("_refine_and_orient: ")
         self._refine_exogenous_effect(en_nodes=en_nodes, ex_nodes=ex_nodes, order=order, cond_indep=cond_indep)
         self.maximally_orient_edges(en_nodes=en_nodes)
+
         self._refine_endogenous(en_nodes=en_nodes, order=order, cond_indep=cond_indep)
         self.maximally_orient_edges(en_nodes=en_nodes)
+        print("_refine_and_orient completed")
 
     def _split_ancestors_descendant(self, en_nodes):
         """
@@ -145,8 +150,10 @@ class LearnStructRAI(LearnStructBase):
         else:
             source_cpdag = self.graph.copy()  # slower, but removes the dependence on the sequence of CI testing
 
+        max_iter = 1000
         for node in en_nodes:
             for ex in ex_nodes:
+
                 if not source_cpdag.is_connected(ex, node):
                     continue
 
@@ -158,6 +165,10 @@ class LearnStructRAI(LearnStructBase):
                     chain(cond_sets_node, cond_sets_ex)
                 )
                 for cset in cond_sets:  # note that cond_sets is a generator of tuples (not sets)
+                    max_iter -= 1
+                    print("max_iter: ", max_iter)
+                    if max_iter == 0:
+                        break
                     if cond_indep(ex, node, cset):  # CI test: test for conditional independence
                         self.graph.delete_edge(ex, node)  # remove the edge ex --> node
                         self.sepset.set_sepset(ex, node, cset)

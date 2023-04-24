@@ -121,6 +121,7 @@ class DSep:
             self.cache_ci = CacheCI(None)
 
     def cond_indep(self, x, y, zz):
+        print("cond_indep: ", x, y, zz)
         res = self.cache_ci.get_cache_result(x, y, zz)
 
         if res is None:
@@ -128,8 +129,10 @@ class DSep:
             if self.verbose:
                 print('d-sep(', x, ',', y, '|', zz, ')', '=', res)
             if self.is_cache:
+                print("set cache")
                 self.cache_ci.set_cache_result(x, y, zz, res)
             if self.count_tests:
+                print("count test")
                 self.test_counter[len(zz)] += 1  # update counter only if the test was not previously cached
         return res
 

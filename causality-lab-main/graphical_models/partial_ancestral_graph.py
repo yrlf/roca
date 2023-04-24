@@ -722,20 +722,33 @@ class PAG(MixedGraph):
         :param sepsets: Separating sets, an instance of the SeparationSet class
         :return:
         """
+        print("partical_ancc.py: orient_v_structures()")
         assert sepsets is not None
         # check each node if it can serve as a collider for a disjoint neighbors
+        i=0
+        print(self.nodes_set)
         for node_z in self.nodes_set:
             # check neighbors
+            i+=1
+            print(i)
             xy_nodes = self.find_adjacent_nodes(node_z)  # neighbors with some edge-mark at node_z
+            j=0
             for node_x, node_y in combinations(xy_nodes, 2):
+                j+=1
+                print("J: ",j,node_x, node_y)
                 if self.is_connected(node_x, node_y):
+                    print("skip this pair as they are connected")
                     continue  # skip this pair as they are connected
+                    
                 if node_z not in sepsets.get_sepset(node_x, node_y):
+                    print("replace_edge_mark")
                     self.replace_edge_mark(
                         node_source=node_x, node_target=node_z, requested_edge_mark=Mark.Directed)  # orient X *--> Z
                     self.replace_edge_mark(
                         node_source=node_y, node_target=node_z, requested_edge_mark=Mark.Directed)  # orient Y *--> Z
+                    print("replace_edge_mark_completed")
 
+        print("partical_ancc.py: orient_v_structures() completed")
     def maximally_orient_pattern(self, rules_set=None):
         """
         Complete orienting graph. It is assumed that all v-structures have been previously oriented

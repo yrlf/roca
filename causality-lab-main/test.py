@@ -1,12 +1,7 @@
-import os
-import openai
-openai.api_key = "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"
-
-completion = openai.ChatCompletion.create(
-  model="gpt-3.5-turbo",
-  messages=[
-    {"role": "user", "content": "Hello!"}
-  ]
-)
-
-print(completion.choices[0].message)
+import networkx as nx
+from cdt.causality.graph import CAM
+from cdt.data import load_dataset
+data, graph = load_dataset("sachs")
+obj = CAM()
+output = obj.predict(data)
+nx.draw_networkx(output, font_size=8)

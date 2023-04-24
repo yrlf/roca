@@ -241,10 +241,11 @@ class MixedGraph:
 
     # --- graph modification functions --------------------------------------------------------------------------------
     def delete_edge(self, node_i, node_j):
+        print("delete edge: ", node_i, node_j)
         for edge_mark in self.edge_mark_types:  # loop through all edge marks
             self._graph[node_i][edge_mark].discard(node_j)
             self._graph[node_j][edge_mark].discard(node_i)
-
+        print("delete edge completed")
     def replace_edge_mark(self, node_source, node_target, requested_edge_mark):
         assert requested_edge_mark in self.edge_mark_types
 

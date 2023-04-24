@@ -66,6 +66,7 @@ parser.add_argument('--method', type=str, default="fci",
 def runCI(data_train,graph_nodes):
     CITest = CondIndepCMI
     th_range = [i / 10000 + 0.01 for i in range(100)]
+    #th_range = [i / 100 + 0.01 for i in range(100)]
     th_pc, all_scores_pc = search_threshold_bdeu(LearnStructPC, data_train, CITest, th_range)
     print('Selected PC threshold = {:.4f}'.format(th_pc))
     ci_test_pc = CITest(dataset=data_train, threshold=th_pc, count_tests=True)  # conditional independence test
@@ -94,6 +95,7 @@ def runICD(data_train,graph_nodes):
         count_tests=True,
         use_cache=True
     )
+    print("runICD, start to learn structure")
     icd = LearnStructICD(graph_nodes, par_corr_icd)  # instantiate an ICD learner
     icd.learn_structure()  # learn the PAG
     learned_pag_icd = icd.graph
@@ -102,12 +104,15 @@ def runICD(data_train,graph_nodes):
 
 def runFCI(data_train,graph_nodes):
 
-    alpha = 0.01
+    alpha = 0.05
     par_corr_fci = CondIndepParCorr(dataset=data_train, threshold=alpha, count_tests=True, use_cache=True)  # CI test
+    print("runFCI, start to learn structure")
     fci = LearnStructFCI(graph_nodes, par_corr_fci)  # instantiate an ICD learner
     fci.learn_structure()  # learn the PAG
   
     return fci
+
+
 
 
 def choooseMethod(method, data_train, graph_nodes):

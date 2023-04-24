@@ -41,9 +41,10 @@ class SeparationSet:
             self._sepset[key] = set()
 
     def set_sepset(self, node_1, node_2, sepset):
+        print("set_sepset", node_1, node_2, sepset)
         hkey = self.get_hash_key(node_1, node_2)
         self._sepset[hkey] = set(sepset)
-
+        print("set_sepset completed")
     def get_sepset(self, node_1, node_2):
         hkey = self.get_hash_key(node_1, node_2)
         return self._sepset[hkey]

@@ -67,10 +67,12 @@ class LearnStructPC(LearnStructBase):
         # ToDo: Move this function to the PDAG class
         # create a copy of edges
         pre_neighbors = dict()
+        print("create a copy of edges")
         for node in self.graph.nodes_set:
             pre_neighbors[node] = self.graph.undirected_neighbors(node).copy()  # undirected neighbors pre graph changes
 
         # check each node if it can serve as new collider for a disjoint neighbors
+        print("check each node if it can serve as new collider for a disjoint neighbors")
         for node_z in self.graph.nodes_set:
             # check undirected neighbors
             xy_nodes = pre_neighbors[node_z]  # undirected neighbors

@@ -4,6 +4,10 @@ from cdt.data import load_dataset
 import cdt
 import matplotlib.pyplot as plt
 
+
+from stein import *
+
+
 import networkx as nx
 from cdt.causality.graph import PC
 from cdt.data import load_dataset
@@ -49,6 +53,23 @@ parser.add_argument('--method', type=str, default="pc",
 
 
 
+
+def generate(d, s0, N, noise_std = 1, noise_type = 'Gauss', graph_type = 'ER', GP = True, lengthscale=1):
+    adjacency = simulate_dag(d, s0, graph_type, triu=True)
+    teacher = Dist(d, noise_std, noise_type, adjacency, GP = GP, lengthscale=lengthscale)
+    X, noise_var = teacher.sample(N)
+    return X, adjacency
+
+
+# Data generation paramters
+graph_type = 'ER'
+d = 10
+s0 = 10
+N = 1000
+
+X2, adj = generate(d, s0, N, GP=True)
+
+
 def checkCA2(dataset, arr):
 
     outedge = np.sum(arr[-1] == 1)
@@ -89,6 +110,15 @@ def runCDT(method):
         obj = None
     return obj
 
+def runSCORE(X):
+    # SCORE hyper-parameters
+    eta_G = 0.001
+    eta_H = 0.001
+    cam_cutoff = 0.001
+    
+    A_SCORE, top_order_SCORE =  SCORE(X, eta_G, eta_H, cam_cutoff, pruning='Stein')
+    return A_SCORE
+
 args = parser.parse_args()
 base_dir = "./"+args.dataset+"/"+args.noise_type+str(args.flip_rate_fixed)+"/"+str(args.seed)+"/"
 print(args)
@@ -122,23 +152,30 @@ data = pd.DataFrame(data_train, columns = list(range(n_vars)))
 
 # print(df)
 
+if (args.method == 'pc' or args.method == 'ges' or args.method == 'cam' or args.method == 'lingam' or args.method == 'gies'):
+    obj = runCDT(args.method)
+    # print(data)
+    #The predict() method works without a graph, or with a
+    #directed or undirected graph provided as an input
+    output = obj.predict(data)    #No graph provided as an argument
 
-obj = runCDT(args.method)
-# print(data)
-#The predict() method works without a graph, or with a
-#directed or undirected graph provided as an input
-output = obj.predict(data)    #No graph provided as an argument
+    #checkCA(output)
+    # output = obj.predict(data, nx.Graph(graph))  #With an undirected graph
+    # output = obj.predict(data, graph)  #With a directed graph
+    # print(output)
+    #To view the graph created, run the below commands:
+    output_graph= nx.adjacency_matrix(output)
 
-#checkCA(output)
-# output = obj.predict(data, nx.Graph(graph))  #With an undirected graph
-# output = obj.predict(data, graph)  #With a directed graph
-# print(output)
-#To view the graph created, run the below commands:
-output_graph= nx.adjacency_matrix(output)
+    matrix_dense=output_graph.toarray()
 
-matrix_dense=output_graph.toarray()
-
-results = checkCA2(args.dataset,matrix_dense)
+    results = checkCA2(args.dataset,matrix_dense)
+elif args.method == 'score':
+    data.iloc[:,-1] = pd.Categorical(data.iloc[:,-1])
+    X=torch.tensor(data.values) 
+    a_score= runSCORE(X)
+    print(a_score)
+    results = checkCA2(args.dataset, a_score)
+    
 
 data_to_save = [args.dataset, args.noise_type, str(args.flip_rate_fixed), args.method, str(results)]
 

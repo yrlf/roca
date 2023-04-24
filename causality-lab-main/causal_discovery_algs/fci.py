@@ -25,20 +25,25 @@ class LearnStructFCI(LearnStructBase):
         """
         # initial graph is a fully connected one with o--o edges between every pair of nodes
         # learn an initial skeleton using the same procedure as in the PC algorithm
+        print("FCI.learn structure: initial_skelton")
         self._learn_pc_skeleton()
 
         # the resulting graph consists of only o--o edges
         # find and orient v-structures
+        print("FCI.learn structure: find and orient v-structures")
         self.graph.orient_v_structures(self.sepset)
 
         # the resulting graph has only o--o, o-->, or <--> edges
         # find and remove edges between pairs of variables that are d-separated by some subset of Possible-D-SEP sets
+        print("FCI.learn structure: find and remove edges")
         self.found_D_Sep_link = self._refine_pc_skeleton()
 
+        print("FCI.learn structure: re-orient")
         # re-orient
         self.graph.reset_orientations(default_mark=Mark.Circle)
         self.graph.orient_v_structures(self.sepset)
         self.graph.maximally_orient_pattern(rules_set=[1, 2, 3, 4])
+        print("FCI.learn structure: check is selection bias")
         if self.is_selection_bias:
             self.graph.maximally_orient_pattern(rules_set=[5, 6, 7])
         if self.is_tail_completeness:
@@ -67,14 +72,18 @@ class LearnStructFCI(LearnStructBase):
         pds_list = dict()
 
         # Prepare the possible-d-sep set for each of the nodes
+        print("FCI._refine_pc_skeleton: prepare the possible-d-sep set for each of the nodes")
         for node_x in self.graph.nodes_set:
             pds_list[node_x] = possible_d_sep = self._create_pds_set(node_x)  # self.get_pds(node_x)
 
         # Test CI for the graph edges
+        print("FCI._refine_pc_skeleton: test CI for the graph edges")
         for node_x in self.graph.nodes_set:
             possible_d_sep = pds_list[node_x]
             adjacent_nodes = self.graph.find_adjacent_nodes(node_x)
+            print("FCI._refine_pc_skeleton: node_x: ", node_x, " adjacent_nodes: ", adjacent_nodes)
             for node_y in adjacent_nodes:
+                print("FCI._refine_pc_skeleton: node_y: ", node_y)
                 found_indep |= self._test_ci_increasing(node_x, node_y, possible_d_sep - {node_y})
 
         return found_indep
@@ -88,11 +97,20 @@ class LearnStructFCI(LearnStructBase):
         :return: True if an edge was deleted, False if no independence was found
         """
         cond_indep = self.ci_test.cond_indep  # for better readability
+        print("FCI._test_ci_increasing: node_x: ", node_x, " node_y: ", node_y, " pds_super_set: ", pds_super_set)
+        i=0
         for ci_size in range(len(pds_super_set)+1):  # loop over condition set sizes; increasing set sizes
+            print("FCI._test_ci_increasing: ci_size: ", ci_size)
             for cond_set in combinations(pds_super_set, ci_size):  # loop over condition sets of a fixed size
+                print("FCI._test_ci_increasing: cond_set: ", cond_set)
+                i+=1
+                if i>1000:
+                    print("max number of iterations reached")
+                    return False
                 if cond_indep(node_x, node_y, cond_set):
                     self.graph.delete_edge(node_x, node_y)
                     self.sepset.set_sepset(node_x, node_y, cond_set)
+                    print("FCI._test_ci_increasing: delete edge: ", node_x, " ", node_y)
                     return True
 
         return False
