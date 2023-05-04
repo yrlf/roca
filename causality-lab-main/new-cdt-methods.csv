@@ -1,0 +1,6 @@
+Dataset,Noise_Type,Noise_Rate,Method,Causality
+iris,instance,0.01,sam,unkown
+letter,instance,0.01,cam,anticausal,0:06:49.153416
+iris,instance,0.01,ccdr,anticausal,0:00:02.420133
+krkp,instance,0.01,ccdr,causal,0:00:04.037398
+splice,instance,0.01,ccdr,anticausal,0:00:05.289943

@@ -1,7 +1,8 @@
 #!/bin/bash
 
 
-for dataset in  splice secstr letter g241c coil digit1 wdbc usps xyguassian yxguassian waveform segment
+#for dataset in  splice secstr letter g241c coil digit1 wdbc usps xyguassian yxguassian waveform segment
+for dataset in cifar10
 # for dataset in iris krkp
 # for dataset in mushroom
 #for dataset in xyguassian
@@ -13,7 +14,7 @@ do
             for seed in 1
             do
 
-                for method in rai icd
+                for method in fci
                 # icd rai ci
                 do
                     python3 run.py --flip_rate_fixed ${rate} --seed ${seed}  --noise_type ${nt} --dataset ${dataset} --method ${method} --output "baseline_fci.csv"

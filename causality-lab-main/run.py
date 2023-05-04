@@ -17,8 +17,8 @@ from causal_discovery_utils.cond_indep_tests import CondIndepParCorr  # import a
 from experiment_utils.synthetic_graphs import create_random_dag_with_latents, sample_data_from_dag
 from causal_discovery_utils.performance_measures import calc_structural_accuracy_pag, find_true_pag
 from matplotlib import pyplot as plt
-
-
+from mylib.data.data_loader import *
+import datetime
 import csv
 
 
@@ -66,7 +66,6 @@ parser.add_argument('--method', type=str, default="fci",
 def runCI(data_train,graph_nodes):
     CITest = CondIndepCMI
     th_range = [i / 10000 + 0.01 for i in range(100)]
-    #th_range = [i / 100 + 0.01 for i in range(100)]
     th_pc, all_scores_pc = search_threshold_bdeu(LearnStructPC, data_train, CITest, th_range)
     print('Selected PC threshold = {:.4f}'.format(th_pc))
     ci_test_pc = CITest(dataset=data_train, threshold=th_pc, count_tests=True)  # conditional independence test
@@ -86,6 +85,9 @@ def runRAI(data_train,graph_nodes):
     return rai
 
 
+def runBRAI(data_train, graph_nodes):
+    pass
+
 def runICD(data_train,graph_nodes):
 
     alpha = 0.01
@@ -95,7 +97,6 @@ def runICD(data_train,graph_nodes):
         count_tests=True,
         use_cache=True
     )
-    print("runICD, start to learn structure")
     icd = LearnStructICD(graph_nodes, par_corr_icd)  # instantiate an ICD learner
     icd.learn_structure()  # learn the PAG
     learned_pag_icd = icd.graph
@@ -104,9 +105,8 @@ def runICD(data_train,graph_nodes):
 
 def runFCI(data_train,graph_nodes):
 
-    alpha = 0.05
+    alpha = 0.01
     par_corr_fci = CondIndepParCorr(dataset=data_train, threshold=alpha, count_tests=True, use_cache=True)  # CI test
-    print("runFCI, start to learn structure")
     fci = LearnStructFCI(graph_nodes, par_corr_fci)  # instantiate an ICD learner
     fci.learn_structure()  # learn the PAG
   
@@ -190,41 +190,72 @@ def main():
     if args.seed is not None:
         fix_seed(args.seed)
 
-    train_val_loader, train_loader, val_loader, est_loader, test_loader = load_ucidata(
-        dataset = args.dataset,  
-        noise_type = args.noise_type,
-        random_state = args.seed, 
-        batch_size = args.batch_size, 
-        add_noise = True, 
-        flip_rate_fixed = args.flip_rate_fixed, 
-        trainval_split = args.trainval_split,
-        train_frac = args.train_frac,
-        augment=False
-    )
+    if args.dataset =="cifar10":
+        train_val_loader, train_loader, val_loader, est_loader, test_loader = load_cifardata(
+            dataset=args.dataset,
+            noise_type=args.noise_type,
+            random_state=args.seed,
+            batch_size=args.batch_size,
+            add_noise=True,
+            flip_rate_fixed=args.flip_rate_fixed,
+            trainval_split=args.trainval_split,
+            train_frac=args.train_frac,
+            augment=False
+        )
+
+    else:
+        train_val_loader, train_loader, val_loader, est_loader, test_loader = load_ucidata(
+            dataset = args.dataset,
+            noise_type = args.noise_type,
+            random_state = args.seed,
+            batch_size = args.batch_size,
+            add_noise = True,
+            flip_rate_fixed = args.flip_rate_fixed,
+            trainval_split = args.trainval_split,
+            train_frac = args.train_frac,
+            augment=False
+        )
+
+    train_dataset = train_loader.dataset
     test_dataset = test_loader.dataset
     val_dataset = val_loader.dataset
 
-    data_train = train_loader.dataset.dataset.noise_data
-    # print(data_train)
-    # print(data_train.dtype)
+    if args.dataset == 'cifar10':
+        data_train = train_dataset.dataset.data
+        # reshape to 2d
+        data_train = data_train.reshape(data_train.shape[0], -1)
+        noisy_labels = train_dataset.dataset.targets
+        # combine data and labels
+        # print("shape of data_train is: ", data_train.shape)
+        # print("shape of noisy_labels is: ", noisy_labels.shape)
+
+        noisy_labels = np.reshape(noisy_labels, (-1, 1))
+        data_train = np.concatenate((data_train, noisy_labels), axis=1)
+
+        print("data_train shape is: ", data_train.shape)
+    else: # UCI dataset
+
+        data_train = train_loader.dataset.dataset.noise_data
+        # print(data_train)
+        # print(data_train.dtype)
 
     n_samples, n_vars = data_train.shape  # data is assumed a numpy 2d-array
     graph_nodes = set(range(n_vars))  # create a set containing the nodes indices
     print(n_samples, n_vars )
-    
 
+    start_time = datetime.datetime.now()
     obj = choooseMethod(args.method, data_train, graph_nodes)
 
     #rai = runICD(data_train,graph_nodes)
     results = checkCA(obj,args.dataset)
+    end_time = datetime.datetime.now()
+    elapsed_time = end_time - start_time
     
-
-    
-    data_to_save = [args.dataset, args.noise_type, str(args.flip_rate_fixed), args.method, str(results)]
+    data_to_save = [args.dataset, args.noise_type, str(args.flip_rate_fixed), args.method, str(results), str(elapsed_time)]
 
 
 
-    headers = ['Dataset', 'Noise_Type', 'Noise_Rate','Method',"Causality"]
+    headers = ['Dataset', 'Noise_Type', 'Noise_Rate','Method',"Causality", "Time"]
 
     filename=args.output
 

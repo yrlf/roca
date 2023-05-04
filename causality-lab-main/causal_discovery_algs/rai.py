@@ -31,25 +31,39 @@ class LearnStructRAI(LearnStructBase):
         # initialize for the 1st recursive call
         en_nodes = self.graph.nodes_set
         ex_nodes = set()
-
+        print("RAI: learning structure")
         self._learn_recursively(en_nodes=en_nodes, ex_nodes=ex_nodes, order=0)
         self.graph.maximally_orient_pattern((1, 2, 3))
-
         self._re_orient_skeleton()
-
+        print("RAI: structure learned")
     def _re_orient_skeleton(self):
         """
         Remove all edge directions and re-orient using rules R1, R2, R3
         :return:
         """
         cpdag_final = PDAG(self.graph.nodes_set)
+        i=0
+        max_iter = 1000
         for node in self.graph.nodes_set:
+            i+=1
+            if i>max_iter:
+                print("max_iter reached")
+                break
             connected_nodes_set = self.graph.parents(node) | self.graph.undirected_neighbors(node)
             cpdag_final.add_edges(parents_set=connected_nodes_set, target_node=node, arrowhead_type=Mark.Undirected)
+        j=0
 
         for node in self.graph.nodes_set:
+            j+=1
+            if j>max_iter:
+                print("max_iter reached")
+                break
             parents_set = self.graph.parents(node)
             for (parent_i, parent_j) in combinations(parents_set, 2):
+                j+=1
+                if j>max_iter:
+                    print("max_iter reached")
+                    break
                 if not self.graph.is_connected(parent_i, parent_j):
                     cpdag_final.orient_edge(source_node=parent_i, target_node=node)  # orient v-structure
                     cpdag_final.orient_edge(source_node=parent_j, target_node=node)
@@ -95,7 +109,12 @@ class LearnStructRAI(LearnStructBase):
         d_nodes, list_of_ancestors_sets, a_nodes = self._split_ancestors_descendant(en_nodes=en_nodes)
 
         # Recursive calls for each autonomous sub-graph
+        i=0
+        max_iter=1000
         for ancestor_set in list_of_ancestors_sets:
+            i=i+1
+            if i>max_iter:
+                break
             self._learn_recursively(en_nodes=ancestor_set, ex_nodes=ex_nodes,
                                     order=order+1)  # recursive call (ancestor)
         self._learn_recursively(en_nodes=d_nodes, ex_nodes=a_nodes | ex_nodes,
@@ -166,9 +185,9 @@ class LearnStructRAI(LearnStructBase):
                 )
                 for cset in cond_sets:  # note that cond_sets is a generator of tuples (not sets)
                     max_iter -= 1
-                    print("max_iter: ", max_iter)
-                    if max_iter == 0:
-                        break
+                    print("max_iter:! ", max_iter)
+                    if max_iter < 0:
+                        return
                     if cond_indep(ex, node, cset):  # CI test: test for conditional independence
                         self.graph.delete_edge(ex, node)  # remove the edge ex --> node
                         self.sepset.set_sepset(ex, node, cset)
