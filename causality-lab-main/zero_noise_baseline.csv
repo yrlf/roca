@@ -1,0 +1,3 @@
+Dataset,Noise_Type,Noise_Rate,Method,Causality,Time
+splice,instance,0.01,fci,anticausal,0:00:55.956706
+splice,instance,0.01,icd,anticausal,1:36:40.344592

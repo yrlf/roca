@@ -326,26 +326,6 @@ def get_instance_noisy_label(n, dataset, labels, nb_classes, feature_size, norm_
             break
     return np.array(new_label), n, P
 
-import numpy as np
-
-def flip_labels(y, p, c):
-    # generate label from 0 to c-1
-    all_labels = np.arange(c)
-
-
-    # Calculate probabilities
-    flip_prob = p / (c - 1)
-    stay_prob = 1 - p
-    probabilities = [stay_prob if label == y else flip_prob for label in all_labels]
-
-    # Flip label
-
-    y_flipped = np.random.choice(all_labels, p=probabilities)
-    return y_flipped
-
-
-
-
 def get_instance_noisy_label3(n, dataset, labels, nb_classes, feature_size, norm_std, random_state):
     # randomly sample a value from a truncated normal distritbution
     # n -> noise_rate
@@ -360,45 +340,33 @@ def get_instance_noisy_label3(n, dataset, labels, nb_classes, feature_size, norm
     P = np.sort(P)
     # calculate L1 norm of features
     A={}
-    y_list = []
     for i, (x, y) in enumerate(dataset):
         # calculate l1 norm of features x
         x_l1_norm = torch.norm(x, p=1)
         A[i] = x_l1_norm
-        y_list.append(y)
 
     # sort A from small to large by value
-
-    sorted_A = sorted(A.items(), key=lambda x: x[1])
+    A = sorted(A.items(), key=lambda x: x[1])
     flip_rates = {}
-    j=0
-    # print first 5 elements in A
+    for i in range(len(A)):
+        flip_rates[A[i][0]] = P[i]
 
-    flip_rates = {}
-    for i, (index, norm) in enumerate(sorted_A):
-        flip_rates[index] = P[i]
-
-    j=0
-    for index, p in flip_rates.items():
-        j+=1
-        if j<=5:
-            print("No.",j, " index: ", index, " flip rate: ", p)
+    for i in range(5):
+        print(A[i][0], A[i][1], flip_rates[i])
 
     # flip y with flip_rates, the probability being flipped into other classes equals to flip_rates/(C-1)
     y_noise_list = np.zeros(labels.shape[0])
     k=0
-    print("now start to flip labels...")
+    for i, (x,y) in enumerate(dataset):
 
-    for i in range(len(y_list)):
-        y=y_list[i]
-        y_noise = flip_labels(y, flip_rates[i], nb_classes)
-
-        #print("before flip: ", y, "after flip: ", y_noise, "flip rate: ", flip_rates[i])
+        y_noise, _,_ = noisify_multiclass_symmetric(y, flip_rates[i], random_state=random_state, nb_classes=nb_classes)
+        k+=1
+        if k<=5:
+            print("before flip: ", y, "after flip: ", y_noise, "flip rate: ", flip_rates[i])
         y_noise_list[i] = y_noise
 
-    print("flip labels done!")
-    # convert y_noise_list to torch tensor
-    #y_noise_list = torch.from_numpy(y_noise_list)
+
+
     return y_noise_list, n, P
 
 

@@ -36,7 +36,7 @@ from mylib.data.data_loader.load_cifardata import load_cifardata
 from mylib.data.data_loader.load_mnistdata import load_mnistdata
 import mylib.data.dataset.util
 from mylib.data.dataset.util import get_instance_noisy_label
-from mylib.data.dataset.util import get_instance_noisy_label2
+from mylib.data.dataset.util import get_instance_noisy_label2, get_instance_noisy_label3
 from mylib.data.dataset.util import noisify_multiclass_symmetric
 
 
@@ -400,7 +400,7 @@ if args.dataset == "cifar10" or args.dataset == "cifar10n_worst" or args.dataset
     if args.seed is not None:
         fix_seed(args.seed)
         train_val_loader, train_loader, val_loader, est_loader, test_loader = load_cifardata(
-            dataset=args.dataset, 
+            dataset=args.dataset,
             random_state=args.seed,
             add_noise=True,
             batch_size=args.batch_size, 
@@ -608,7 +608,7 @@ def main():
     error_list = []
 
     noisy_data_list = []
-    noisy_rate_list = np.arange(0.1, 1, 0.1)
+    noisy_rate_list = np.arange(0.1, 0.55, 0.05)
 
     
     feature_size = train_dataset.dataset.data.shape[1]
@@ -647,7 +647,7 @@ def main():
 
             error_rate = 1-(train_noisy_labels[:,0]==prime_Y).sum()/len(train_noisy_labels)
             print(error_rate)
-        elif (args.dataset == "cifar10"): # or args.dataset == "cifar10n_worst" or args.dataset == "cifar10n_aggre" or args.dataset == "cifar10n_random1" or args.dataset == "cifar10n_random2"or args.dataset == "cifar10n_random3"):
+        elif (args.dataset == "cifar10"):
             dataset = train_dataset.dataset.data
             initial_noise_labels2 = train_dataset.dataset.targets
             print("cifar10, initial noise label shape: ", initial_noise_labels2.shape)
@@ -704,69 +704,64 @@ def main():
                     count_resampled = collections.Counter(train_noisy_labels)
                     print("resampled noisy labels distribution: ", count_resampled)
 
-        elif (args.dataset == "cifar10n_worst" or args.dataset == "cifar10n_aggre" or args.dataset== "cifar10n_random1" or args.dataset == "cifar10n_random2" or args.dataset== "cifar10n_random3"):
-            dataset = train_dataset.dataset.data
-            initial_noise_labels2 = initial_noise_labels
+            elif (args.dataset == "cifar10n_worst" or args.dataset == "cifar10n_aggre" or args.dataset== "cifar10n_random1" or args.dataset == "cifar10n_random2" or args.dataset== "cifar10n_random3"):
+                dataset = train_dataset.dataset.data
+                initial_noise_labels2 = initial_noise_labels
+                print("cifar10, initial noise label shape: ", initial_noise_labels2.shape)
+                if args.noise_injection_type == 'ins':
+                    count = collections.Counter(initial_noise_labels2)
+                    num_classes = len(count)
+                    train_labels = torch.from_numpy(initial_noise_labels2.copy())
+                    # zip dataset and train_labels
+                    dataset2 = zip(torch.from_numpy(dataset).float(), torch.from_numpy(initial_noise_labels2.copy()))
 
-            if args.noise_injection_type == 'ins':
-                count = collections.Counter(initial_noise_labels2)
-                num_classes = len(count)
-                train_labels = torch.from_numpy(initial_noise_labels2.copy())
-                # zip dataset and train_labels
-                dataset2 = zip(torch.from_numpy(dataset).float(), torch.from_numpy(initial_noise_labels2.copy()))
+                    train_noisy_labels, actual_noise_rate, P = get_instance_noisy_label2(n=noise_rate, dataset=dataset2, labels=train_labels,nb_classes=num_classes, feature_size=3072,norm_std=norm_std,random_state=args.seed + 1)
+                    print("instance-dependent noise injected!")
+                    count = collections.Counter(train_noisy_labels)
+                    dist_threshold = 0.2
+                    is_balanced = True
+                    print("===")
+                    num_classes = len(count)
+                    print("num_classes: ", num_classes)
+                    # python max integer
+                    minority_class = None
+                    num_minority_instances = sys.maxsize
+                    for each in count:
+                        if count[each] < num_minority_instances:
+                            num_minority_instances = count[each]
+                            minority_class = each
+                        dist = round(count[each] / len(train_noisy_labels), 2)
+                        if (dist > 1 / num_classes + dist_threshold) or (dist < 1 / num_classes - dist_threshold):
+                            is_balanced = False
 
-                train_noisy_labels, actual_noise_rate, P = get_instance_noisy_label2(n=noise_rate, dataset=dataset2,
-                                                                                     labels=train_labels,
-                                                                                     nb_classes=num_classes,
-                                                                                     feature_size=3072,
-                                                                                     norm_std=norm_std,
-                                                                                     random_state=args.seed + 1)
-                print("instance-dependent noise injected!")
-                count = collections.Counter(train_noisy_labels)
-                dist_threshold = 0.2
-                is_balanced = True
-                print("===")
-                num_classes = len(count)
-                print("num_classes: ", num_classes)
-                # python max integer
-                minority_class = None
-                num_minority_instances = sys.maxsize
-                for each in count:
-                    if count[each] < num_minority_instances:
-                        num_minority_instances = count[each]
-                        minority_class = each
-                    dist = round(count[each] / len(train_noisy_labels), 2)
-                    if (dist > 1 / num_classes + dist_threshold) or (dist < 1 / num_classes - dist_threshold):
-                        is_balanced = False
+                        class_dist.append((each, dist))
 
-                    class_dist.append((each, dist))
+                    # subsample the dataset to make it balanced
+                    index_to_keep = []
+                    if not is_balanced:
+                        primeY = run_kmeans2(train_dataset.dataset)
+                        print("dataset is not balanced, subsampling...")
+                        # pick class not equal to minority class
+                        for i in range(num_classes - 1):
+                            if i != minority_class:
+                                # randomly select num_minority_instances from class i to keep
+                                index_to_keep.extend(
+                                    random.sample([j for j, x in enumerate(train_noisy_labels) if x == i],
+                                                  num_minority_instances))
+                            else:
+                                index_to_keep.extend([j for j, x in enumerate(train_noisy_labels) if x == i])
+                        print("before resampling, length of noisy labels and primeY are: ", len(train_noisy_labels),
+                              len(primeY))
 
-                # subsample the dataset to make it balanced
-                index_to_keep = []
-                if not is_balanced:
-                    primeY = run_kmeans2(train_dataset.dataset)
-                    print("dataset is not balanced, subsampling...")
-                    # pick class not equal to minority class
-                    for i in range(num_classes - 1):
-                        if i != minority_class:
-                            # randomly select num_minority_instances from class i to keep
-                            index_to_keep.extend(
-                                random.sample([j for j, x in enumerate(train_noisy_labels) if x == i],
-                                              num_minority_instances))
-                        else:
-                            index_to_keep.extend([j for j, x in enumerate(train_noisy_labels) if x == i])
-                    print("before resampling, length of noisy labels and primeY are: ", len(train_noisy_labels),
-                          len(primeY))
+                        train_noisy_labels = train_noisy_labels[index_to_keep]
 
-                    train_noisy_labels = train_noisy_labels[index_to_keep]
+                        primeY = primeY[index_to_keep]
 
-                    primeY = primeY[index_to_keep]
+                        print("AFTER resampling, length of noisy labels and primeY are: ", len(train_noisy_labels),
+                              len(primeY))
 
-                    print("AFTER resampling, length of noisy labels and primeY are: ", len(train_noisy_labels),
-                          len(primeY))
-
-                    count_resampled = collections.Counter(train_noisy_labels)
-                    print("resampled noisy labels distribution: ", count_resampled)
+                        count_resampled = collections.Counter(train_noisy_labels)
+                        print("resampled noisy labels distribution: ", count_resampled)
 
             else:
                 train_noisy_labels, _, _ = noisify_multiclass_symmetric(initial_noise_labels.copy(
@@ -791,7 +786,9 @@ def main():
                 train_labels = torch.from_numpy(initial_noise_labels.copy())
                 # zip dataset and train_labels
                 dataset2=zip(torch.from_numpy(dataset).float(), torch.from_numpy(initial_noise_labels.copy()))
-                train_noisy_labels, actual_noise_rate, P = get_instance_noisy_label(n=noise_rate, dataset=dataset2, labels=train_labels, nb_classes=num_classes, feature_size=feature_size, norm_std=norm_std, random_state=args.seed+1)
+                train_noisy_labels, actual_noise_rate, P = get_instance_noisy_label3(n=noise_rate, dataset=dataset2, labels=train_labels, nb_classes=num_classes, feature_size=feature_size, norm_std=norm_std, random_state=args.seed+1)
+
+                #exit()
                 # print train noisy labels distribution
                 # count number of class and print percentage of each class
                 count = collections.Counter(train_noisy_labels)
