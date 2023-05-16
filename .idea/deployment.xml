@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="root@region-8.seetacloud.com:15611 agent" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="root@hz.matpool.com:29807 password" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="root@region-8.seetacloud.com:15611 agent">
+      <paths name="root@hz.matpool.com:29807 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/root/CDnoise/001_causal_discovery" local="$PROJECT_DIR$" />
+            <mapping deploy="/mnt" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>
