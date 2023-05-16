@@ -626,20 +626,59 @@ def main():
             initial_noise_labels = noise_label[random_index]
             
             if args.noise_injection_type == 'ins':
-              
-                _, train_loader2, _, _, _ = load_ucidata(
-                    dataset=args.dataset,
-                    noise_type="instance",
-                    random_state=args.seed+1,
-                    batch_size=args.batch_size,
-                    add_noise=True,
-                    flip_rate_fixed=noise_rate,
-                    trainval_split=args.trainval_split,
-                    train_frac=args.train_frac,
-                    augment=False
-                )
-                train_dataset2 = train_loader2.dataset
-                train_noisy_labels=train_dataset2.dataset.targets.copy()
+                dataset = train_dataset.dataset.data
+                initial_noise_labels2 = train_dataset.dataset.targets
+                count = collections.Counter(initial_noise_labels2)
+                num_classes = len(count)
+                train_labels = torch.from_numpy(initial_noise_labels2.copy())
+                # zip dataset and train_labels
+                dataset2=zip(torch.from_numpy(dataset).float(), torch.from_numpy(initial_noise_labels2.copy()))
+
+                train_noisy_labels, actual_noise_rate, P = get_instance_noisy_label2(n=noise_rate, dataset=dataset2, labels=train_labels, nb_classes=num_classes, feature_size=3072, norm_std=norm_std, random_state=args.seed+1)
+                print("instance-dependent noise injected!")
+                count = collections.Counter(train_noisy_labels)
+                dist_threshold = 0.2
+                is_balanced = True
+                print("===")
+                num_classes = len(count)
+                print("num_classes: ", num_classes)
+                # python max integer
+                minority_class = None
+                num_minority_instances = sys.maxsize
+                for each in count:
+                    if count[each] < num_minority_instances:
+                        num_minority_instances = count[each]
+                        minority_class = each
+                    dist = round(count[each] / len(train_noisy_labels), 2)
+                    if (dist > 1 / num_classes + dist_threshold) or (dist < 1 / num_classes - dist_threshold):
+                        is_balanced = False
+
+                    class_dist.append((each, dist))
+
+                # subsample the dataset to make it balanced
+                index_to_keep = []
+                if not is_balanced:
+                    primeY = run_kmeans2(train_dataset.dataset)
+                    print("dataset is not balanced, subsampling...")
+                    # pick class not equal to minority class
+                    for i in range(num_classes - 1):
+                        if i != minority_class:
+                            # randomly select num_minority_instances from class i to keep
+                            index_to_keep.extend(random.sample([j for j, x in enumerate(train_noisy_labels) if x == i],
+                                                               num_minority_instances))
+                        else:
+                            index_to_keep.extend([j for j, x in enumerate(train_noisy_labels) if x == i])
+                    print("before resampling, length of noisy labels and primeY are: ", len(train_noisy_labels),
+                          len(primeY))
+
+                    train_noisy_labels = train_noisy_labels[index_to_keep]
+
+                    primeY = primeY[index_to_keep]
+
+                    print("AFTER resampling, length of noisy labels and primeY are: ", len(train_noisy_labels), len(primeY))
+
+                    count_resampled = collections.Counter(train_noisy_labels)
+                    print("resampled noisy labels distribution: ", count_resampled)
 
             else:
                 train_noisy_labels, _, _ = noisify_multiclass_symmetric(initial_noise_labels.copy(
