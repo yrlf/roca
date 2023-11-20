@@ -1,0 +1,4 @@
+Dataset,Noise_Type,Noise_Rate,Method,Causality,Time
+iris,sym,0.04,fci,anticausal,0:00:00.012130
+iris,instance,0.04,fci,unkown,0:00:00.010294
+xyguassian,sym,0.04,fci,anticausal,0:00:00.029671
